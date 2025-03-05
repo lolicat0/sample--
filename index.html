@@ -294,11 +294,32 @@
             align-items: center;
             cursor: pointer;
             transition: all 0.2s ease;
+            font-weight: bold;
         }
 
         .control-btn:hover {
             background-color: rgba(0, 0, 0, 0.8);
             transform: scale(1.1);
+        }
+        
+        #vr-toggle {
+            position: relative;
+        }
+        
+        #vr-toggle::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ff5722;
+            top: 5px;
+            right: 5px;
+            transition: background-color 0.5s ease;
+        }
+        
+        #vr-toggle.supported::after {
+            background-color: #4CAF50;
         }
 
         #vr-container {
@@ -442,7 +463,7 @@
     
     <!-- A-Frame scene for VR -->
     <div id="vr-container">
-        <a-scene embedded vr-mode-ui="enabled: false">
+        <a-scene embedded vr-mode-ui="enabled: true">
             <a-assets>
                 <img id="welcome-bg" src="https://source.unsplash.com/random/1920x1080/?vr,gallery" alt="Welcome Background">
                 <audio id="welcome-audio" preload="auto">
@@ -464,7 +485,13 @@
             
             <!-- Camera with controls -->
             <a-entity id="rig" position="0 1.6 0">
-                <a-camera look-controls wasd-controls></a-camera>
+                <a-camera look-controls wasd-controls="acceleration: 100">
+                    <a-entity cursor="fuse: true; fuseTimeout: 500"
+                        position="0 0 -1"
+                        geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                        material="color: white; shader: flat">
+                    </a-entity>
+                </a-camera>
             </a-entity>
             
             <!-- Video plane for video playback -->
@@ -625,7 +652,11 @@
             vrToggle.addEventListener('click', function() {
                 // If currently viewing a Panoraven image, switch back to A-Frame VR
                 if (panoravenContainer.classList.contains('active')) {
-                    alert('Please select an image from the gallery to use VR mode');
+                    // Close Panoraven view and show last A-Frame content
+                    panoravenContainer.classList.remove('active');
+                    vrContainer.style.display = 'block';
+                    loadMedia(0); // Load the first regular image
+                    alert('Switched to A-Frame content for VR mode');
                     return;
                 }
                 
@@ -745,8 +776,55 @@
                 }
             }
             
+            // After document load, check VR compatibility
+            function checkVRSupport() {
+                if (navigator.xr) {
+                    navigator.xr.isSessionSupported('immersive-vr')
+                        .then(supported => {
+                            if (supported) {
+                                console.log('VR is supported on this device');
+                                vrToggle.classList.add('supported');
+                                vrToggle.title = 'VR mode is available on your device';
+                            } else {
+                                console.log('VR is not supported on this device');
+                                vrToggle.classList.remove('supported');
+                                vrToggle.title = 'VR mode is not available on your device';
+                            }
+                        })
+                        .catch(err => {
+                            console.warn('Error checking VR support:', err);
+                            vrToggle.classList.remove('supported');
+                            vrToggle.title = 'Unable to determine VR support';
+                        });
+                } else if (navigator.getVRDisplays) {
+                    // WebVR API (older)
+                    navigator.getVRDisplays().then(displays => {
+                        if (displays.length > 0) {
+                            console.log('WebVR API: VR is supported');
+                            vrToggle.classList.add('supported');
+                            vrToggle.title = 'VR mode is available on your device';
+                        } else {
+                            console.log('WebVR API: No VR displays found');
+                            vrToggle.classList.remove('supported');
+                            vrToggle.title = 'VR mode is not available on your device';
+                        }
+                    }).catch(err => {
+                        console.warn('Error checking WebVR support:', err);
+                        vrToggle.classList.remove('supported');
+                        vrToggle.title = 'Unable to determine VR support';
+                    });
+                } else {
+                    console.log('Neither WebXR nor WebVR API is available');
+                    vrToggle.classList.remove('supported');
+                    vrToggle.title = 'VR is not supported in your browser';
+                }
+            }
+            
             // Initialize particles
             createParticles();
+            
+            // Check VR support
+            checkVRSupport();
         });
     </script>
 </body>
